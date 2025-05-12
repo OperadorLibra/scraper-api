@@ -36,6 +36,7 @@ def buscar_placar(time1, time2):
         return f"Erro ao buscar placar: {str(e)}"
 
 @app.get("/")
+@app.head("/")  # Adicionando suporte para o método HEAD na rota raiz
 async def root():
     return {
         "mensagem": "API de Placares de Jogos - Use a rota /placares para buscar placares",
@@ -43,7 +44,11 @@ async def root():
     }
 
 @app.post("/placares")
-async def obter_placares(lista: ListaJogos):
+@app.head("/placares")  # Adicionando suporte para o método HEAD na rota /placares
+async def obter_placares(lista: ListaJogos = None):  # Tornar o parâmetro opcional para o método HEAD
+    if lista is None:  # Se for uma requisição HEAD, não terá corpo
+        return {}
+        
     resultados = []
     for jogo in lista.jogos:
         placar = buscar_placar(jogo.time1, jogo.time2)
@@ -53,6 +58,12 @@ async def obter_placares(lista: ListaJogos):
             "placar": placar
         })
     return {"resultados": resultados}
+
+# Adicionando rota específica para a documentação para garantir que está acessível
+@app.get("/docs")
+@app.head("/docs")
+async def get_docs():
+    return {}
 
 # Para garantir que a API funcione no Render
 if __name__ == "__main__":
