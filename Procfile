@@ -1,1 +1,1 @@
-web: uvicorn scraper_api:app --host=0.0.0.0 --port=$PORT
+uvicorn scraper_api:app --host=0.0.0.0 --port=${PORT}
