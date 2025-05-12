@@ -34,21 +34,35 @@ def buscar_ge_placares(url):
         soup = BeautifulSoup(html, "html.parser")
         resultados = []
 
-        jogos = soup.find_all("div", class_="feed-post-body") or soup.find_all("div", class_="resultado-conteudo")
-        for el in jogos:
-            texto = el.get_text(separator=" ").strip()
-            placar = extrair_placar(texto)
-            if placar:
-                partes = texto.split("x")
-                if len(partes) != 2:
-                    continue
-                time1 = formatar_nome_time(re.sub(r'[^a-zA-ZÀ-ÿ ]', '', partes[0])).strip()
-                time2 = formatar_nome_time(re.sub(r'[^a-zA-ZÀ-ÿ ]', '', partes[1])).strip()
-                resultados.append({
-                    "time1": time1,
-                    "time2": time2,
-                    "placar": placar
-                })
+        # Lista de classes possíveis que podem conter resultados
+        possiveis_classes = [
+            "feed-post-body",
+            "resultado-conteudo",
+            "resultado-resumido",
+            "widget-jogo",
+            "jogo",
+            "placar",
+            "match-info"
+        ]
+
+        for classe in possiveis_classes:
+            elementos = soup.find_all("div", class_=classe)
+            for el in elementos:
+                texto = el.get_text(separator=" ").strip()
+                placar = extrair_placar(texto)
+                if placar:
+                    partes = texto.split("x")
+                    if len(partes) != 2:
+                        continue
+                    time1 = formatar_nome_time(re.sub(r'[^a-zA-ZÀ-ÿ ]', '', partes[0])).strip()
+                    time2 = formatar_nome_time(re.sub(r'[^a-zA-ZÀ-ÿ ]', '', partes[1])).strip()
+                    resultados.append({
+                        "time1": time1,
+                        "time2": time2,
+                        "placar": placar
+                    })
+            if resultados:
+                break  # para no primeiro bloco que retornar jogos válidos
         return resultados
     except:
         return []
