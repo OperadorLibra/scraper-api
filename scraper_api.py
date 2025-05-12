@@ -3,7 +3,6 @@ from pydantic import BaseModel
 import requests
 from bs4 import BeautifulSoup
 import re
-import os
 
 # Configuração da API
 app = FastAPI(
@@ -55,10 +54,3 @@ async def obter_placares(lista: ListaJogos):
             "placar": placar
         })
     return {"resultados": resultados}
-
-# Para garantir que a API funcione em ambientes de hospedagem
-if __name__ == "__main__":
-    import uvicorn
-    # Pega a porta do ambiente ou usa 8000 como padrão
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("scraper_api:app", host="0.0.0.0", port=port)
