@@ -1,10 +1,9 @@
-from flask import Flask, jsonify
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 import requests
 from bs4 import BeautifulSoup
 
-app = Flask(__name__)
-
-# ===== FUNÇÃO PRINCIPAL DE BUSCA DE RODADA =====
+app = FastAPI()
 
 def buscar_resultados_por_campeonato(campeonato_nome):
     query = f"rodada {campeonato_nome}"
@@ -20,12 +19,10 @@ def buscar_resultados_por_campeonato(campeonato_nome):
     resultados = []
     rodada_atual = None
 
-    # Tentativa de identificar texto que contém 'Rodada' e número
     rodada_tag = soup.find(string=lambda s: s and "Rodada" in s and any(char.isdigit() for char in s))
     if rodada_tag:
         rodada_atual = rodada_tag.strip()
 
-    # Busca por divs com 'x' e número no texto, como "Palmeiras 1x0 São Paulo"
     jogo_tags = soup.find_all('div', string=lambda s: s and 'x' in s and any(char.isdigit() for char in s))
 
     for tag in jogo_tags:
@@ -55,10 +52,20 @@ def buscar_resultados_por_campeonato(campeonato_nome):
 
     return resultados or {"erro": "Nenhum jogo encontrado"}
 
-# ===== ROTA PARA CONSULTA =====
+@app.get("/")
+def index():
+    return {
+        "status": "ok",
+        "rotas": [
+            "/rodada/brasileirao",
+            "/rodada/libertadores",
+            "/rodada/sulamericana",
+            "/rodada/copadobrasil"
+        ]
+    }
 
-@app.route('/rodada/<campeonato>', methods=['GET'])
-def rodada(campeonato):
+@app.get("/rodada/{campeonato}")
+def rodada(campeonato: str):
     nome_map = {
         "brasileirao": "do Brasileirão",
         "libertadores": "da Libertadores",
@@ -67,26 +74,7 @@ def rodada(campeonato):
     }
 
     if campeonato not in nome_map:
-        return jsonify({"erro": "Campeonato inválido"}), 400
+        return JSONResponse(content={"erro": "Campeonato inválido"}, status_code=400)
 
     resultados = buscar_resultados_por_campeonato(nome_map[campeonato])
-    return jsonify(resultados)
-
-# ===== ROTA PADRÃO =====
-
-@app.route('/', methods=['GET'])
-def index():
-    return jsonify({
-        "status": "ok",
-        "rotas": [
-            "/rodada/brasileirao",
-            "/rodada/libertadores",
-            "/rodada/sulamericana",
-            "/rodada/copadobrasil"
-        ]
-    })
-
-# ===== EXECUÇÃO LOCAL (caso use flask direto) =====
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return resultados
