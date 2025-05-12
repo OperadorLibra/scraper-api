@@ -1,0 +1,25 @@
+# API de Placares de Jogos
+
+Uma API simples para buscar placares de jogos de futebol.
+
+## Como usar
+
+### Endpoint
+
+POST /placares
+
+### Exemplo de requisição
+
+```json
+{
+  "jogos": [
+    {
+      "time1": "Flamengo",
+      "time2": "Fluminense"
+    },
+    {
+      "time1": "Corinthians",
+      "time2": "Palmeiras"
+    }
+  ]
+}
