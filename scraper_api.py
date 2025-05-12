@@ -1,73 +1,92 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from flask import Flask, jsonify
 import requests
 from bs4 import BeautifulSoup
-import re
-import os
 
-# Configuração da API
-app = FastAPI(
-    title="API de Placares de Jogos",
-    description="API para buscar placares de jogos de futebol",
-    version="1.0.0"
-)
+app = Flask(__name__)
 
-class Jogo(BaseModel):
-    time1: str
-    time2: str
+# ===== FUNÇÃO PRINCIPAL DE BUSCA DE RODADA =====
 
-class ListaJogos(BaseModel):
-    jogos: list[Jogo]
+def buscar_resultados_por_campeonato(campeonato_nome):
+    query = f"rodada {campeonato_nome}"
+    url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
+    headers = { "User-Agent": "Mozilla/5.0" }
 
-def buscar_placar(time1, time2):
-    query = f"{time1} x {time2} site:ge.globo.com"
-    url = f"https://www.google.com/search?q={requests.utils.quote(query)}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    try:
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-        match = re.search(r"(\d+)\s*x\s*(\d+)", soup.text)
-        if match:
-            return f"{match.group(1)}x{match.group(2)}"
-        return "Placar não encontrado"
-    except Exception as e:
-        return f"Erro ao buscar placar: {str(e)}"
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        return {"erro": "Erro ao acessar Google"}
 
-@app.get("/")
-@app.head("/")  # Adicionando suporte para o método HEAD na rota raiz
-async def root():
-    return {
-        "mensagem": "API de Placares de Jogos - Use a rota /placares para buscar placares",
-        "documentação": "Acesse /docs para ver a documentação completa da API"
-    }
-
-@app.post("/placares")
-@app.head("/placares")  # Adicionando suporte para o método HEAD na rota /placares
-async def obter_placares(lista: ListaJogos = None):  # Tornar o parâmetro opcional para o método HEAD
-    if lista is None:  # Se for uma requisição HEAD, não terá corpo
-        return {}
-        
+    soup = BeautifulSoup(response.text, "html.parser")
+    
     resultados = []
-    for jogo in lista.jogos:
-        placar = buscar_placar(jogo.time1, jogo.time2)
-        resultados.append({
-            "time1": jogo.time1,
-            "time2": jogo.time2,
-            "placar": placar
-        })
-    return {"resultados": resultados}
+    rodada_atual = None
 
-# Adicionando rota específica para a documentação para garantir que está acessível
-@app.get("/docs")
-@app.head("/docs")
-async def get_docs():
-    return {}
+    # Tentativa de identificar texto que contém 'Rodada' e número
+    rodada_tag = soup.find(string=lambda s: s and "Rodada" in s and any(char.isdigit() for char in s))
+    if rodada_tag:
+        rodada_atual = rodada_tag.strip()
 
-# Para garantir que a API funcione no Render
-if __name__ == "__main__":
-    import uvicorn
-    # Pega a porta do ambiente ou usa 8000 como padrão
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("scraper_api:app", host="0.0.0.0", port=port)
+    # Busca por divs com 'x' e número no texto, como "Palmeiras 1x0 São Paulo"
+    jogo_tags = soup.find_all('div', string=lambda s: s and 'x' in s and any(char.isdigit() for char in s))
+
+    for tag in jogo_tags:
+        texto = tag.get_text(strip=True)
+        if texto.count('x') != 1:
+            continue
+
+        try:
+            partes = texto.split('x')
+            time1 = partes[0].strip()
+            time2 = partes[1].strip()
+
+            placar1 = ''.join(filter(str.isdigit, time1))
+            placar2 = ''.join(filter(str.isdigit, time2))
+
+            time1_nome = ''.join(filter(lambda c: not c.isdigit(), time1)).strip()
+            time2_nome = ''.join(filter(lambda c: not c.isdigit(), time2)).strip()
+
+            resultados.append({
+                "rodada": rodada_atual or "Rodada não identificada",
+                "time1": time1_nome,
+                "time2": time2_nome,
+                "placar": f"{placar1}x{placar2}"
+            })
+        except:
+            continue
+
+    return resultados or {"erro": "Nenhum jogo encontrado"}
+
+# ===== ROTA PARA CONSULTA =====
+
+@app.route('/rodada/<campeonato>', methods=['GET'])
+def rodada(campeonato):
+    nome_map = {
+        "brasileirao": "do Brasileirão",
+        "libertadores": "da Libertadores",
+        "sulamericana": "da Sul-Americana",
+        "copadobrasil": "da Copa do Brasil"
+    }
+
+    if campeonato not in nome_map:
+        return jsonify({"erro": "Campeonato inválido"}), 400
+
+    resultados = buscar_resultados_por_campeonato(nome_map[campeonato])
+    return jsonify(resultados)
+
+# ===== ROTA PADRÃO =====
+
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        "status": "ok",
+        "rotas": [
+            "/rodada/brasileirao",
+            "/rodada/libertadores",
+            "/rodada/sulamericana",
+            "/rodada/copadobrasil"
+        ]
+    })
+
+# ===== EXECUÇÃO LOCAL (caso use flask direto) =====
+
+if __name__ == '__main__':
+    app.run(debug=True)
