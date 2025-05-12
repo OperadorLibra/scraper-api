@@ -95,10 +95,7 @@ def rodada(campeonato: str):
         buscar_resultados_google(query),
         buscar_resultados_site("https://ge.globo.com/futebol/brasileirao-serie-a/", class_name="feed-post"),
         buscar_resultados_site("https://esporte.uol.com.br/futebol/"),
-        buscar_resultados_site("https://www.espn.com.br/futebol/"),
-        buscar_resultados_site("https://www.goal.com/br"),
-        buscar_resultados_site("https://www.cnnbrasil.com.br/esportes/"),
-        buscar_resultados_site("https://www.infobae.com/brasil/esportes/")
+        buscar_resultados_site("https://www.espn.com.br/futebol/")
     ]
 
     agrupado = agrupar_por_jogo(fontes)
